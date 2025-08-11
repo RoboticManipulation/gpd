@@ -72,9 +72,7 @@ namespace gpd {
         Eigen::Affine3d transform_camera2base;
         std::vector<double> workspace; 
         bool can_filter_approach;
-        bool can_segment;
         double thresh_rad;
-        std::string object_name;
     };
 
 /**
