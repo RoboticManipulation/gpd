@@ -426,9 +426,10 @@ void Cloud::voxelizeCloud(float cell_size) {
 
 void Cloud::subsample(int num_samples) {
   if (num_samples == 0) {
+    printf("subsample: No subsampling requested.\n");
     return;
   }
-
+  printf("subsample: Subsampling to %d samples.\n", num_samples);
   if (samples_.cols() > 0) {
     subsampleSamples(num_samples);
   } else if (sample_indices_.size() > 0) {
@@ -470,10 +471,18 @@ void Cloud::subsampleSamples(int num_samples) {
 }
 
 void Cloud::subsampleSampleIndices(int num_samples) {
-  if (sample_indices_.size() == 0 || num_samples >= sample_indices_.size()) {
+  std::cout << "Subsampling " << num_samples << " out of "
+            << sample_indices_.size() << " available sample indices.\n";
+  if (sample_indices_.size() == 0 )//|| num_samples >= sample_indices_.size()) {
     return;
+  //}
+  if (num_samples > sample_indices_.size() ) {
+    std::cout << "Warning: num_samples (" << num_samples
+              << ") is larger than the number of available sample indices ("
+              << sample_indices_.size() << "). Using all available sample "
+              << "indices.\n";
+    num_samples = sample_indices_.size();
   }
-
   std::vector<int> indices(num_samples);
   for (int i = 0; i < num_samples; i++) {
     indices[i] = sample_indices_[rand() % sample_indices_.size()];

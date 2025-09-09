@@ -7,6 +7,7 @@ namespace gpd {
 GraspDetector::GraspDetector(const std::string &config_filename) {
   Eigen::initParallel();
 
+  std::cout<<"Reading configuration file: " << config_filename << "\n";
   // Read parameters from configuration file.
   util::ConfigFile config_file(config_filename);
   config_file.ExtractKeys();
@@ -136,7 +137,7 @@ GraspDetector::GraspDetector(const std::string &config_filename) {
     std::cout << *image_geom;
   } else
   {
-    throw std::runtime_error(("ERROR: file %s does not exist! Check the config file", image_geometry_filename).c_str());
+    throw std::runtime_error(("ERROR: ImageGeometry file %s does not exist! Check the config file", image_geometry_filename).c_str());
   }
 
   // Read classification parameters and create classifier.
@@ -146,11 +147,11 @@ GraspDetector::GraspDetector(const std::string &config_filename) {
   
   if(!checkFileExists(model_file))
   {
-    printf("ERROR: file %s does not exist! Check the config file\n", model_file.c_str());
+    printf("ERROR: model_file file %s does not exist! Check the config file\n", model_file.c_str());
   }
 
   if(!checkFileExists(weights_file))
-    throw std::runtime_error(("ERROR: file %s does not exist! Check the config file", weights_file).c_str());
+    throw std::runtime_error(("ERROR: weights_file file %s does not exist! Check the config file", weights_file).c_str());
 
 
   if (!model_file.empty() || !weights_file.empty()) {
@@ -351,6 +352,29 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(
 }
 
 std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::Cloud &cloud, DetectParams &detectParam){
+  std::cout<<"Detecting grasps with modified parameters:\n";
+  std::cout << "=== DetectParams ===\n";
+
+  std::cout << "approach_direction: "
+            << detectParam.approach_direction.transpose() << "\n";
+
+  std::cout << "camera_position (" << detectParam.camera_position.rows() << "x"
+            << detectParam.camera_position.cols() << "):\n"
+            << detectParam.camera_position << "\n";
+
+  std::cout << "transform_camera2base (4x4):\n"
+            << detectParam.transform_camera2base.matrix() << "\n";
+
+  std::cout << "workspace [xmin,xmax,ymin,ymax,zmin,zmax]: ";
+  for (size_t i = 0; i < detectParam.workspace.size(); ++i) {
+    std::cout << detectParam.workspace[i] << " ";
+  }
+  std::cout << "\n";
+
+  std::cout << "can_filter_approach: " << std::boolalpha
+            << detectParam.can_filter_approach << "\n";
+
+  std::cout << "thresh_rad: " << detectParam.thresh_rad << "\n";
   double t0_total = omp_get_wtime();
   std::vector<std::unique_ptr<candidate::Hand>> hands_out;
 
@@ -358,12 +382,13 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
 
   // Check if the point cloud is empty.
   if (cloud.getCloudOriginal()->size() == 0) {
-    printf("ERROR: Point cloud is empty!");
+    std::cout<<"ERROR: Point cloud is empty!"<<std::endl;
     hands_out.resize(0);
     return hands_out;
   }
-
+  std::cout<<"BEFORE: setViewPoints!";
   cloud.setViewPoints(detectParam.camera_position);
+  std::cout<<"AFTER: setViewPoints!"<< std::endl;
 
   // Plot samples/indices.
   if (plot_samples_) {
@@ -376,7 +401,7 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
   }
 
   if (plot_normals_) {
-    std::cout << "Plotting normals for different camera sources\n";
+    std::cout << "Plotting normals for different camera sources\n"<< std::flush;
     plotter_->plotNormals(cloud);
   }
 
@@ -384,7 +409,7 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
   double t0_candidates = omp_get_wtime();
   std::vector<std::unique_ptr<candidate::HandSet>> hand_set_list =
       candidates_generator_->generateGraspCandidateSets(cloud);
-  printf("Generated %zu hand sets.\n", hand_set_list.size());
+  std::cout << "Generated " << hand_set_list.size() << " hand sets.\n"<< std::flush;
   if (hand_set_list.size() == 0) {
     return hands_out;
   }
@@ -396,12 +421,16 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
   }
 
   // 2. Filter the candidates.
+  std::cout << "Filtering " << hand_set_list.size() << " hand sets by workspace\n"<< std::flush;
   double t0_filter = omp_get_wtime();
   std::vector<std::unique_ptr<candidate::HandSet>> hand_set_list_filtered =
       filterGraspsWorkspace(hand_set_list, detectParam.workspace, detectParam.transform_camera2base);
   if (hand_set_list_filtered.size() == 0) {
+    std::cout << "ERROR: No hand sets left after filtering by workspace.\n"<< std::flush;
     return hands_out;
   }
+
+  std::cout << "Filtered " << hand_set_list_filtered.size() << " hand sets after filterGraspsWorkspace.\n"<< std::flush;
 
   if (plot_filtered_candidates_) {
     plotter_->plotFingers3D(hand_set_list_filtered, cloud.getCloudOriginal(),
@@ -410,12 +439,14 @@ std::vector<std::unique_ptr<candidate::Hand>> GraspDetector::detectGrasps(util::
 
    if (detectParam.can_filter_approach) {
     hand_set_list_filtered =
-        filterGraspsDirection(hand_set_list_filtered, detectParam.approach_direction, detectParam.thresh_rad);
+        filterGraspsDirection(hand_set_list_filtered, detectParam.approach_direction, detectParam.thresh_rad, detectParam.transform_camera2base);
     if (plot_filtered_candidates_) {
       plotter_->plotFingers3D(hand_set_list_filtered, cloud.getCloudOriginal(),
                               "Filtered Grasps (Approach)", hand_geom);
     }
   }
+
+  std::cout << "Filtered " << hand_set_list_filtered.size() << " hand sets after filterGraspsDirection.\n"<< std::flush;
 
   double t_filter = omp_get_wtime() - t0_filter;
   if (hand_set_list_filtered.size() == 0) {
@@ -710,6 +741,60 @@ GraspDetector::filterGraspsDirection(
 
   return hand_set_list_out;
 }
+
+std::vector<std::unique_ptr<candidate::HandSet>>
+GraspDetector::filterGraspsDirection(
+    std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
+    const Eigen::Vector3d &direction_base,           // desired direction in base
+    const double thresh_rad,                       // threshold in rad
+    const Eigen::Affine3d &transform_camera2base)  // camera to base transform
+{
+  std::vector<std::unique_ptr<candidate::HandSet>> hand_set_list_out;
+  int remaining = 0;
+
+  // Extract rotation (camera → base)
+  const Eigen::Matrix3d R_cam2base = transform_camera2base.linear();
+
+  for (int i = 0; i < hand_set_list.size(); i++) {
+    const std::vector<std::unique_ptr<candidate::Hand>> &hands =
+        hand_set_list[i]->getHands();
+    Eigen::Array<bool, 1, Eigen::Dynamic> is_valid =
+        hand_set_list[i]->getIsValid();
+
+    for (int j = 0; j < hands.size(); j++) {
+      if (is_valid(j)) {
+        // Transform approach vector into base frame
+        Eigen::Vector3d approach_base =
+            (R_cam2base * hands[j]->getApproach()).normalized();
+
+        // Compute angle between direction and approach
+        double cos_angle = direction_base.normalized().dot(approach_base);
+        cos_angle = std::min(1.0, std::max(-1.0, cos_angle));  // clamp to
+                                                                // [-1,1] to
+                                                                // avoid NaN
+        double angle = std::acos(cos_angle);
+
+        if (angle > thresh_rad) {
+          is_valid(j) = false;
+        } else {
+          remaining++;
+        }
+      }
+    }
+
+    if (is_valid.any()) {
+      hand_set_list_out.push_back(std::move(hand_set_list[i]));
+      hand_set_list_out.back()->setIsValid(is_valid);
+    }
+  }
+
+  printf("Number of grasp candidates with correct approach direction: %d\n",
+         remaining);
+
+  return hand_set_list_out;
+}
+
+
 
 bool GraspDetector::createGraspImages(
     util::Cloud &cloud,

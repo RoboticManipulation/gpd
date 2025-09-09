@@ -59,7 +59,7 @@ std::vector<std::unique_ptr<HandSet>> HandSearch::searchHands(
 
   const double t2 = omp_get_wtime();
   std::cout << "====> HAND SEARCH TIME: " << t2 - t0_total << std::endl;
-
+  std::cout << "Found hand poses ..."<<(int)hand_set_list.size()<<"\n";
   return hand_set_list;
 }
 

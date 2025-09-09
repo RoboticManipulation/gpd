@@ -32,7 +32,7 @@ void CandidatesGenerator::preprocessPointCloud(util::Cloud &cloud) {
   if (params_.sample_above_plane_) {
     cloud.sampleAbovePlane();
   }
-
+  printf("Subsampling to %d samples.\n", params_.num_samples_);
   cloud.subsample(params_.num_samples_);
 }
 
@@ -58,13 +58,14 @@ void CandidatesGenerator::preprocessPointCloud(util::Cloud &cloud, const Eigen::
   if (params_.sample_above_plane_) {
     cloud.sampleAbovePlane();
   }
-
+  printf("Subsampling to %d samples.\n", params_.num_samples_);
   cloud.subsample(params_.num_samples_);
 }
 
 std::vector<std::unique_ptr<Hand>> CandidatesGenerator::generateGraspCandidates(
     const util::Cloud &cloud_cam) {
   // Find sets of grasp candidates.
+  printf("Generating grasp candidates...\n");
   std::vector<std::unique_ptr<HandSet>> hand_set_list =
       hand_search_->searchHands(cloud_cam);
   printf("Evaluated %d hand sets with %d potential hand poses.\n",
@@ -88,9 +89,13 @@ std::vector<std::unique_ptr<Hand>> CandidatesGenerator::generateGraspCandidates(
 std::vector<std::unique_ptr<HandSet>>
 CandidatesGenerator::generateGraspCandidateSets(const util::Cloud &cloud_cam) {
   // Find sets of grasp candidates.
+  printf("Generating grasp candidate Sets...\n");
   std::vector<std::unique_ptr<HandSet>> hand_set_list =
       hand_search_->searchHands(cloud_cam);
 
+      printf("Generated generateGraspCandidateSets %d hand sets with %d potential hand poses.\n",
+         (int)hand_set_list.size(),
+         (int)(hand_set_list.size() * hand_set_list[0]->getHands().size()));
   return hand_set_list;
 }
 

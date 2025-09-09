@@ -154,6 +154,12 @@ class GraspDetector {
       std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
       const Eigen::Vector3d &direction, const double thresh_rad);
 
+  std::vector<std::unique_ptr<candidate::HandSet>> filterGraspsDirection(
+    std::vector<std::unique_ptr<candidate::HandSet>> &hand_set_list,
+    const Eigen::Vector3d &direction_base,           // direction in base frame
+    const double thresh_rad, 
+    const Eigen::Affine3d& transform_camera2base); 
+
   /**
    * \brief Generate grasp candidates.
    * \param cloud the point cloud
