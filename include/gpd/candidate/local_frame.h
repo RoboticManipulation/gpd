@@ -49,6 +49,7 @@ namespace candidate {
  */
 class LocalFrame {
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   /**
    * \brief Constructor.
    * \param T_cams the camera poses

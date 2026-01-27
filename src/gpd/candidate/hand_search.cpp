@@ -59,7 +59,8 @@ std::vector<std::unique_ptr<HandSet>> HandSearch::searchHands(
 
   const double t2 = omp_get_wtime();
   std::cout << "====> HAND SEARCH TIME: " << t2 - t0_total << std::endl;
-  std::cout << "Found hand poses ..."<<(int)hand_set_list.size()<<"\n";
+  int num_hands = (int)hand_set_list.size();
+  std::cout << "Found hand poses ..."<< num_hands <<"\n";
   return hand_set_list;
 }
 
@@ -154,8 +155,6 @@ std::vector<std::unique_ptr<candidate::HandSet>> HandSearch::evalHands(
   // necessary b/c assignment in Eigen does not change vector size
   const Eigen::VectorXd angles = angles_space.head(params_.num_orientations_);
 
-  std::vector<int> nn_indices;
-  std::vector<float> nn_dists;
   const PointCloudRGB::Ptr &cloud = cloud_cam.getCloudProcessed();
   const Eigen::Matrix3Xd points =
       cloud->getMatrixXfMap().block(0, 0, 3, cloud->size()).cast<double>();
@@ -163,17 +162,18 @@ std::vector<std::unique_ptr<candidate::HandSet>> HandSearch::evalHands(
   const util::PointList point_list(points, cloud_cam.getNormals(),
                                    cloud_cam.getCameraSource(),
                                    cloud_cam.getViewPoints());
-  util::PointList nn_points;
 
 #ifdef _OPENMP  // parallelization using OpenMP
-#pragma omp parallel for private(nn_indices, nn_dists, nn_points) \
-    num_threads(params_.num_threads_)
+#pragma omp parallel for num_threads(params_.num_threads_)
 #endif
   for (std::size_t i = 0; i < frames.size(); i++) {
+    std::vector<int> nn_indices;
+    std::vector<float> nn_dists;
+    util::PointList nn_points;
     pcl::PointXYZRGBA sample = eigenVectorToPcl(frames[i].getSample());
     hand_set_list[i] = std::make_unique<HandSet>(
         params_.hand_geometry_, angles, params_.hand_axes_,
-        params_.num_finger_placements_, params_.deepen_hand_, *antipodal_);
+        params_.num_finger_placements_, params_.deepen_hand_, antipodal_.get());
 
     if (kdtree.radiusSearch(sample, nn_radius_, nn_indices, nn_dists) > 0) {
       nn_points = point_list.slice(nn_indices);

@@ -560,6 +560,7 @@ GraspDetector::filterGraspsWorkspace(
     Eigen::Array<bool, 1, Eigen::Dynamic> is_valid =
         hand_set_list[i]->getIsValid();
 
+    int valid_count_in_set = 0;
     for (int j = 0; j < hands.size(); j++) {
       if (!is_valid(j)) {
         continue;
@@ -572,7 +573,7 @@ GraspDetector::filterGraspsWorkspace(
       Eigen::Vector3d left_top =
           left_bottom + hand_geometry.depth_ * hands[j]->getApproach();
       Eigen::Vector3d right_top =
-          left_bottom + hand_geometry.depth_ * hands[j]->getApproach();
+          right_bottom + hand_geometry.depth_ * hands[j]->getApproach();
       Eigen::Vector3d approach =
           hands[j]->getPosition() - 0.05 * hands[j]->getApproach();
       Eigen::VectorXd x(5), y(5), z(5);
@@ -591,20 +592,21 @@ GraspDetector::filterGraspsWorkspace(
           y.minCoeff() >= workspace[2] && y.maxCoeff() <= workspace[3] &&
           z.minCoeff() >= workspace[4] && z.maxCoeff() <= workspace[5]) {
         is_valid(j) = true;
+        valid_count_in_set++;
         remaining++;
       } else {
         is_valid(j) = false;
       }
     }
 
-    if (is_valid.any()) {
+    if (valid_count_in_set > 0) {
       hand_set_list_out.push_back(std::move(hand_set_list[i]));
-      hand_set_list_out[hand_set_list_out.size() - 1]->setIsValid(is_valid);
+      hand_set_list_out.back()->setIsValid(is_valid);
     }
   }
 
-  printf("Number of grasp candidates within workspace and gripper width: %d\n",
-         remaining);
+  printf("Workspace Filter: %d candidates remaining (Workspace: [%.2f, %.2f]x[%.2f, %.2f]x[%.2f, %.2f], Aperture: [%.2f, %.2f])\n",
+         remaining, workspace[0], workspace[1], workspace[2], workspace[3], workspace[4], workspace[5], min_aperture_, max_aperture_);
 
   return hand_set_list_out;
 }
@@ -628,7 +630,14 @@ GraspDetector::filterGraspsWorkspace(
 
     for (int j = 0; j < hands.size(); j++) {
       if (!is_valid(j)) {
+        if (i == 0 && j < 5) {
+             std::cout << "DEBUG: Grasp " << j << " already invalid.\n";
+        }
         continue;
+      } else {
+        if (i == 0 && j < 5) {
+             std::cout << "DEBUG: Checking Grasp " << j << "\n";
+        }
       }
 
       // https://eigen.tuxfamily.org/dox/group__TutorialGeometry.html#TutorialGeoTransform
@@ -647,7 +656,7 @@ GraspDetector::filterGraspsWorkspace(
       Eigen::Vector3d left_top =
           left_bottom + hand_geometry.depth_ * hand_approach_baseframe;
       Eigen::Vector3d right_top =
-          left_bottom + hand_geometry.depth_ * hand_approach_baseframe;
+          right_bottom + hand_geometry.depth_ * hand_approach_baseframe;
       Eigen::Vector3d approach =
           hand_position_baseframe - 0.05 * hand_approach_baseframe;
       Eigen::VectorXd x(5), y(5), z(5);
@@ -669,6 +678,14 @@ GraspDetector::filterGraspsWorkspace(
         remaining++;
       } else {
         is_valid(j) = false;
+        if (remaining == 0 && i == 0 && j < 5) {
+             std::cout << "DEBUG: Rejected grasp " << j << "\n";
+             std::cout << "  Width: " << hands[j]->getGraspWidth() << " [" << min_aperture_ << ", " << max_aperture_ << "]\n";
+             std::cout << "  X: " << x.minCoeff() << " to " << x.maxCoeff() << " [" << workspace[0] << ", " << workspace[1] << "]\n";
+             std::cout << "  Y: " << y.minCoeff() << " to " << y.maxCoeff() << " [" << workspace[2] << ", " << workspace[3] << "]\n";
+             std::cout << "  Z: " << z.minCoeff() << " to " << z.maxCoeff() << " [" << workspace[4] << ", " << workspace[5] << "]\n";
+             std::cout << "  Pos: " << hand_position_baseframe.transpose() << "\n";
+        }
       }
     }
 

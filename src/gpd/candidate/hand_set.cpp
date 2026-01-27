@@ -16,7 +16,7 @@ int HandSet::seed_ = 0;
 HandSet::HandSet(const HandGeometry &hand_geometry,
                  const Eigen::VectorXd &angles,
                  const std::vector<int> &hand_axes, int num_finger_placements,
-                 bool deepen_hand, Antipodal &antipodal)
+                 bool deepen_hand, Antipodal *antipodal)
     : hand_geometry_(hand_geometry),
       angles_(angles),
       hand_axes_(hand_axes),
@@ -105,6 +105,9 @@ void HandSet::evalHands(const util::PointList &point_list,
           finger_hand.computePointsInClosingRegion(
               point_list_cropped.getPoints(), finger_idx);
       if (indices_closing.size() == 0) {
+        if (i == 0) {
+             printf("HandSet: Grasp %d invalid due to empty closing region. Start %d\n", i, start);
+        }
         continue;
       }
 
@@ -123,6 +126,9 @@ Eigen::Matrix3Xd HandSet::calculateShadow(const util::PointList &point_list,
   double num_shadow_points = floor(shadow_length / voxel_grid_size);
 
   const int num_cams = point_list.getCamSource().rows();
+  if (num_cams == 0) {
+    return Eigen::Matrix3Xd(3, 0);
+  }
 
   Eigen::Matrix3Xd shadow;
 
@@ -130,6 +136,9 @@ Eigen::Matrix3Xd HandSet::calculateShadow(const util::PointList &point_list,
   Eigen::VectorXi camera_set = point_list.getCamSource().rowwise().sum();
 
   // Calculate the center point of the point neighborhood.
+  if (point_list.size() == 0) {
+    return Eigen::Matrix3Xd(3, 0);
+  }
   Eigen::Vector3d center = point_list.getPoints().rowwise().sum();
   center /= (double)point_list.size();
 
@@ -253,7 +262,7 @@ void HandSet::modifyCandidate(Hand &hand, const util::PointList &point_list,
 void HandSet::labelHypothesis(const util::PointList &point_list,
                               const FingerHand &finger_hand, Hand &hand) const {
   int label =
-      antipodal_.evaluateGrasp(point_list, 0.003, finger_hand.getLateralAxis(),
+      antipodal_->evaluateGrasp(point_list, 0.003, finger_hand.getLateralAxis(),
                                finger_hand.getForwardAxis(), 2);
   hand.setHalfAntipodal(label == Antipodal::HALF_GRASP ||
                         label == Antipodal::FULL_GRASP);

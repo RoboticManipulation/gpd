@@ -87,19 +87,26 @@ std::vector<cv::Mat> Image15ChannelsStrategy::calculateChannels(
     const Eigen::Matrix3Xd &points, const Eigen::Matrix3Xd &normals,
     const Eigen::Matrix3Xd &shadow) const {
   std::vector<cv::Mat> channels(5);
-
-  Eigen::VectorXi cell_indices = findCellIndices(points);
-  cv::Mat normals_image = createNormalsImage(normals, cell_indices);
-  std::vector<cv::Mat> normals_image_channels;
-  cv::split(normals_image, normals_image_channels);
-  for (size_t i = 0; i < normals_image.channels(); i++) {
-    channels[i] = normals_image_channels[i];
+  for (int i = 0; i < 5; i++) {
+    channels[i] = cv::Mat(image_params_.size_, image_params_.size_, CV_8UC1,
+                          cv::Scalar(0));
   }
 
-  channels[3] = createDepthImage(points, cell_indices);
+  if (points.cols() > 0) {
+    Eigen::VectorXi cell_indices = findCellIndices(points);
+    cv::Mat normals_image = createNormalsImage(normals, cell_indices);
+    std::vector<cv::Mat> normals_image_channels;
+    cv::split(normals_image, normals_image_channels);
+    for (size_t i = 0; i < normals_image.channels(); i++) {
+      channels[i] = normals_image_channels[i];
+    }
+    channels[3] = createDepthImage(points, cell_indices);
+  }
 
-  cell_indices = findCellIndices(shadow);
-  channels[4] = createShadowImage(shadow, cell_indices);
+  if (shadow.cols() > 0) {
+    Eigen::VectorXi cell_indices = findCellIndices(shadow);
+    channels[4] = createShadowImage(shadow, cell_indices);
+  }
 
   return channels;
 }

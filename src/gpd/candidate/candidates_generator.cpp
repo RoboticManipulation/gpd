@@ -93,9 +93,18 @@ CandidatesGenerator::generateGraspCandidateSets(const util::Cloud &cloud_cam) {
   std::vector<std::unique_ptr<HandSet>> hand_set_list =
       hand_search_->searchHands(cloud_cam);
 
-      printf("Generated generateGraspCandidateSets %d hand sets with %d potential hand poses.\n",
-         (int)hand_set_list.size(),
-         (int)(hand_set_list.size() * hand_set_list[0]->getHands().size()));
+  std::cerr << "CandidatesGenerator: searchHands returned " << hand_set_list.size() << " hand sets." << std::endl;
+
+  if (hand_set_list.size() > 0) {
+    if (hand_set_list[0] != nullptr) {
+        printf("Generated generateGraspCandidateSets %d hand sets with %d potential hand poses.\n",
+               (int)hand_set_list.size(),
+               (int)(hand_set_list.size() * hand_set_list[0]->getHands().size()));
+    }
+  } else {
+    printf("Generated generateGraspCandidateSets %d hand sets.\n", (int)hand_set_list.size());
+  }
+
   return hand_set_list;
 }
 

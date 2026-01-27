@@ -108,6 +108,7 @@ typedef boost::unordered_set<Eigen::Vector3i, boost::hash<Eigen::Vector3i>,
  */
 class HandSet {
  public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   /**
    * Constructor.
    */
@@ -123,7 +124,7 @@ class HandSet {
    */
   HandSet(const HandGeometry &hand_geometry, const Eigen::VectorXd &angles,
           const std::vector<int> &hand_axes, int num_finger_placements,
-          bool deepen_hand, Antipodal &antipodal);
+          bool deepen_hand, Antipodal *antipodal);
 
   /**
    * \brief Calculate a set of grasp candidates given a local reference frame.
@@ -285,7 +286,7 @@ class HandSet {
   std::vector<int> hand_axes_;  ///< the axes about which the hand frame is
                                 /// rotated to evaluate different orientations
 
-  Antipodal &antipodal_;
+  Antipodal *antipodal_;
 
   static int seed_;  ///< seed for the random generator in fastrand()
 

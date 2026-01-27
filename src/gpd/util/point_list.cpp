@@ -50,7 +50,7 @@ PointList PointList::cropByHandHeight(double height, int dim) const {
       k++;
     }
   }
-
+  indices.resize(k);
   return slice(indices);
 }
 
