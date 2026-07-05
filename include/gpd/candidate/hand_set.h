@@ -207,6 +207,8 @@ class HandSet {
    */
   void setIsValidWithIndex(int idx, bool val) { is_valid_[idx] = val; }
 
+  static void set_rng_seed(int seed) { seed_ = seed; }
+
  private:
   /**
    * \brief Calculate shadow for one camera.
